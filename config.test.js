@@ -23,5 +23,5 @@ describe("config can come from env", function () {
 
     expect(config.getDatabaseUri()).toEqual("jobly_test");
   });
-})
+});
 

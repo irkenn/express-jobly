@@ -6,11 +6,12 @@ const jsonschema = require("jsonschema");
 
 const express = require("express");
 const { ensureLoggedIn } = require("../middleware/auth");
-const { BadRequestError } = require("../expressError");
+const { BadRequestError, ForbiddenError } = require("../expressError");
 const User = require("../models/user");
 const { createToken } = require("../helpers/tokens");
 const userNewSchema = require("../schemas/userNew.json");
 const userUpdateSchema = require("../schemas/userUpdate.json");
+const userRegister = require("../schemas/userRegister.json");
 
 const router = express.Router();
 
@@ -29,15 +30,18 @@ const router = express.Router();
 
 router.post("/", ensureLoggedIn, async function (req, res, next) {
   try {
-    const validator = jsonschema.validate(req.body, userNewSchema);
-    if (!validator.valid) {
-      const errs = validator.errors.map(e => e.stack);
-      throw new BadRequestError(errs);
+    //first validate if the user isAdmin
+    if(res.locals.user.isAdmin === true){
+      const validator = jsonschema.validate(req.body, userNewSchema);
+      if (!validator.valid) {
+        const errs = validator.errors.map(e => e.stack);
+        throw new BadRequestError(errs);
+      }
+      const user = await User.register(req.body);
+      const token = createToken(user);
+      return res.status(201).json({ user, token });
     }
-
-    const user = await User.register(req.body);
-    const token = createToken(user);
-    return res.status(201).json({ user, token });
+    throw new ForbiddenError();
   } catch (err) {
     return next(err);
   }
@@ -53,8 +57,12 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
 
 router.get("/", ensureLoggedIn, async function (req, res, next) {
   try {
-    const users = await User.findAll();
-    return res.json({ users });
+    console.log('res.locals.user', res.locals.user);
+    if(res.locals.user.isAdmin === true){
+      const users = await User.findAll();
+      return res.json({ users });
+    }
+    throw new ForbiddenError();
   } catch (err) {
     return next(err);
   }
@@ -70,8 +78,12 @@ router.get("/", ensureLoggedIn, async function (req, res, next) {
 
 router.get("/:username", ensureLoggedIn, async function (req, res, next) {
   try {
-    const user = await User.get(req.params.username);
-    return res.json({ user });
+    const username = req.params && req.params.username;
+    if(res.locals.user.isAdmin === true || res.locals.user.username === username){
+      const user = await User.get(req.params.username);
+      return res.json({ user });
+    }
+    throw new ForbiddenError();
   } catch (err) {
     return next(err);
   }
@@ -90,14 +102,17 @@ router.get("/:username", ensureLoggedIn, async function (req, res, next) {
 
 router.patch("/:username", ensureLoggedIn, async function (req, res, next) {
   try {
-    const validator = jsonschema.validate(req.body, userUpdateSchema);
-    if (!validator.valid) {
-      const errs = validator.errors.map(e => e.stack);
-      throw new BadRequestError(errs);
+    const username = req.params && req.params.username;
+    if(res.locals.user.isAdmin === true || res.locals.user.username === username){
+      const validator = jsonschema.validate(req.body, userUpdateSchema);
+      if (!validator.valid) {
+        const errs = validator.errors.map(e => e.stack);
+        throw new BadRequestError(errs);
+      }
+      const user = await User.update(req.params.username, req.body);
+      return res.json({ user });
     }
-
-    const user = await User.update(req.params.username, req.body);
-    return res.json({ user });
+    throw new ForbiddenError();
   } catch (err) {
     return next(err);
   }

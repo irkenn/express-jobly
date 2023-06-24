@@ -2,7 +2,7 @@
 
 const db = require("../db");
 const { BadRequestError, NotFoundError } = require("../expressError");
-const { sqlForPartialUpdate } = require("../helpers/sql");
+const { sqlForPartialUpdate, sqlForFilteredFinds } = require("../helpers/sql");
 
 /** Related functions for companies. */
 
@@ -59,6 +59,26 @@ class Company {
            FROM companies
            ORDER BY name`);
     return companiesRes.rows;
+  }
+
+
+  static async filteredFind(requestQuery){
+    //const { name, minEmployees, maxEmployees } = requestQuery;
+    const { setCols, values } = sqlForFilteredFinds(requestQuery);
+    const companies = await db.query(
+      `SELECT handle,
+      name,
+      description,
+      num_employees AS "numEmployees",
+      logo_url AS "logoUrl"
+      FROM companies
+      WHERE ${setCols} 
+      `,
+      values
+      );
+    if (!companies || companies.rows.length === 0) throw new NotFoundError(`No current matches for your request`);
+    
+    return companies.rows;
   }
 
   /** Given a company handle, return data about company.

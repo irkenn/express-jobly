@@ -11,6 +11,7 @@ const Company = require("../models/company");
 
 const companyNewSchema = require("../schemas/companyNew.json");
 const companyUpdateSchema = require("../schemas/companyUpdate.json");
+const companiesFilterSchema = require("../schemas/filteredFind.json");
 
 const router = new express.Router();
 
@@ -39,6 +40,30 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
   }
 });
 
+router.get("/", async function(req, res, next){
+  try{
+    //If there's any query argument in the request 
+    if(Object.keys(req.query).length != 0){
+      //Only name, minEmployees and maxEmployees are valid parameters
+
+      const validator = jsonschema.validate(req.query, companiesFilterSchema);
+      if (!validator.valid) {
+        const errs = validator.errors.map(e => e.stack);
+        throw new BadRequestError(errs);
+      }
+      //If the querie is appropiate  
+      const companies = await Company.filteredFind(req.query);
+      return res.json({ companies });
+    }
+    //If there are no arguments it will return all the companies.
+    const companies = await Company.findAll();
+    return res.json({ companies });
+    
+
+  }catch (err){
+    return next(err);
+  }
+});
 /** GET /  =>
  *   { companies: [ { handle, name, description, numEmployees, logoUrl }, ...] }
  *
@@ -50,14 +75,15 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
  * Authorization required: none
  */
 
-router.get("/", async function (req, res, next) {
-  try {
-    const companies = await Company.findAll();
-    return res.json({ companies });
-  } catch (err) {
-    return next(err);
-  }
-});
+//This route was integrated with the previous route. 
+// router.get("/", async function (req, res, next) {
+//   try {
+//     const companies = await Company.findAll();
+//     return res.json({ companies });
+//   } catch (err) {
+//     return next(err);
+//   }
+// });
 
 /** GET /[handle]  =>  { company }
  *
