@@ -70,23 +70,21 @@ class User {
     }
     const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
     const result = await db.query(
-      `INSERT INTO users
-      (username,
-        password,
-        first_name,
-        last_name,
-        email,
-        is_admin)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING username, first_name AS "firstName", last_name AS "lastName", email, is_admin AS "isAdmin"`,
-        [
-          username,
-          hashedPassword,
-          firstName,
-          lastName,
-          email,
-          isAdmin
-        ]);
+          `INSERT INTO users
+              (username,
+              password,
+              first_name,
+              last_name,
+              email,
+              is_admin)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING username, first_name AS "firstName", last_name AS "lastName", email, is_admin AS "isAdmin"`,
+            [ username,
+              hashedPassword,
+              firstName,
+              lastName,
+              email,
+              isAdmin ]);
         
     const user = result.rows[0];
 
@@ -100,13 +98,17 @@ class User {
 
   static async findAll() {
     const result = await db.query(
-          `SELECT username,
-                  first_name AS "firstName",
-                  last_name AS "lastName",
-                  email,
-                  is_admin AS "isAdmin"
-           FROM users
-           ORDER BY username`,
+          `SELECT 
+                  u.username,
+                  u.first_name AS "firstName",
+                  u.last_name AS "lastName",
+                  u.email,
+                  u.is_admin AS "isAdmin",
+                  jsonb_agg(DISTINCT a.job_id) AS jobs
+           FROM users AS "u"
+           LEFT JOIN applications AS "a" ON (u.username = a.username)
+           GROUP BY u.username
+           ORDER BY u.username`,
     );
 
     return result.rows;
@@ -117,18 +119,23 @@ class User {
    * Returns { username, first_name, last_name, is_admin, jobs }
    *   where jobs is { id, title, company_handle, company_name, state }
    *
-   * Throws NotFoundError if user not found.
+   * Throws NotFoundError if user not found. 
    **/
 
   static async get(username) {
     const userRes = await db.query(
-          `SELECT username,
-                  first_name AS "firstName",
-                  last_name AS "lastName",
-                  email,
-                  is_admin AS "isAdmin"
-           FROM users
-           WHERE username = $1`,
+          `SELECT 
+            u.username,
+            u.first_name AS "firstName",
+            u.last_name AS "lastName",
+            u.email,
+            u.is_admin AS "isAdmin",
+            jsonb_agg(DISTINCT a.job_id) AS jobs
+          FROM users AS "u"
+          LEFT JOIN applications AS "a" ON (u.username = a.username)
+          WHERE u.username = $1
+          GROUP BY u.username
+          ORDER BY u.username`,
         [username],
     );
 
@@ -201,7 +208,32 @@ class User {
 
     if (!user) throw new NotFoundError(`No user: ${username}`);
   }
+  
+  
+  /** Get all the jobs applications that the user has submitted */
+  
+  static async apply(username, jobId){
+    //Check the user hasn't already apply to this job
+    let checkFirst = await db.query(
+      `SELECT username,
+              job_id AS "jobId" 
+        FROM applications
+        WHERE username =$1 AND job_id = $2`,
+    [username, jobId]);
+    //If so, throw an error
+    if(checkFirst.rows[0]) {
+      throw new BadRequestError(`You have already applied for this job: ${jobId}`);
+    }
+    //Submit the application to the database and return the jobId
+    let submitApplication = await db.query(
+      `INSERT INTO applications (username, job_id)
+        VALUES ($1, $2)
+        RETURNING job_id AS "jobId"`,
+      [username, jobId]);
+    
+      return submitApplication.rows[0];
+    
+  }
+  
 }
-
-
 module.exports = User;

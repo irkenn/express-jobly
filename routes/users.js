@@ -12,6 +12,7 @@ const { createToken } = require("../helpers/tokens");
 const userNewSchema = require("../schemas/userNew.json");
 const userUpdateSchema = require("../schemas/userUpdate.json");
 const userRegister = require("../schemas/userRegister.json");
+const userJobApplication = require("../schemas/userJobApplication.json");
 
 const router = express.Router();
 
@@ -31,6 +32,7 @@ const router = express.Router();
 router.post("/", ensureLoggedIn, async function (req, res, next) {
   try {
     //first validate if the user isAdmin
+    
     if(res.locals.user.isAdmin === true){
       const validator = jsonschema.validate(req.body, userNewSchema);
       if (!validator.valid) {
@@ -57,7 +59,7 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
 
 router.get("/", ensureLoggedIn, async function (req, res, next) {
   try {
-    console.log('res.locals.user', res.locals.user);
+    
     if(res.locals.user.isAdmin === true){
       const users = await User.findAll();
       return res.json({ users });
@@ -89,6 +91,27 @@ router.get("/:username", ensureLoggedIn, async function (req, res, next) {
   }
 });
 
+router.post("/:username/jobs/:jobId", ensureLoggedIn, async function(req, res, next){
+  try{
+    
+    const validator = jsonschema.validate(req.params, userJobApplication);
+    if (!validator.valid) {
+      const errs = validator.errors.map(e => e.stack);
+      throw new BadRequestError(errs);
+    }
+    const username = req.params && req.params.username;
+    const jobId = req.params && req.params.jobId;
+    if(res.locals.user.isAdmin === true || res.locals.user.username === username){ 
+      const response = await User.apply(username, jobId);
+      
+      console.log('response', response);
+      return res.status(201).json({applied: response.jobId})
+    }
+    throw new ForbiddenError();
+  }catch(err){
+    return next(err);
+  }
+});
 
 /** PATCH /[username] { user } => { user }
  *
@@ -126,8 +149,11 @@ router.patch("/:username", ensureLoggedIn, async function (req, res, next) {
 
 router.delete("/:username", ensureLoggedIn, async function (req, res, next) {
   try {
-    await User.remove(req.params.username);
-    return res.json({ deleted: req.params.username });
+    const username = req.params && req.params.username;
+    if(res.locals.user.isAdmin === true || res.locals.user.username === username){
+      await User.remove(req.params.username);
+      return res.json({ deleted: req.params.username });
+    }
   } catch (err) {
     return next(err);
   }

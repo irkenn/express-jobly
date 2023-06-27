@@ -23,10 +23,7 @@ function sqlForPartialUpdate(dataToUpdate, jsToSql) {
   };
 }
 
-function sqlForFilteredFinds(queryParams){
-  
-  
-  //This is going to throw the error is min is greater than max
+function sqlForFilteredCompanyFinds(queryParams){
   
   let { name, minEmployees, maxEmployees } = queryParams;
   let conditions = {};
@@ -34,6 +31,7 @@ function sqlForFilteredFinds(queryParams){
     name = `%${name}%`;
     conditions[name] = `name ilike`;
   } 
+  //This is going to throw the error is min is greater than max
   if(minEmployees && maxEmployees){
     if(minEmployees > maxEmployees) throw new BadRequestError("Invalid: min employees number is greater than max number");
   }
@@ -55,11 +53,32 @@ function sqlForFilteredFinds(queryParams){
     setCols: cols.join(" AND "),
     values : Object.keys(conditions)
   };
-
-  
-
-
-
 };
 
-module.exports = { sqlForPartialUpdate, sqlForFilteredFinds };
+function sqlForFilteredJobFinds(queryParams){
+  let { title, salary, equity } = queryParams;
+  let conditions = {};
+  
+  if(title){
+    title = `%${title}%`;
+    conditions[title] = `title ilike`;
+  }
+  if(equity){
+    conditions[0]=`equity >`;
+  }
+  if(salary){
+    conditions[salary]= `salary >=`;
+  }   
+  let values = Object.values(conditions);
+  let cols = values.map((colName, idx) => `${conditions[colName] || colName} $${idx +1}`);
+  
+  return {
+    setCols: cols.join(" AND "),
+    values : Object.keys(conditions)
+  };
+};
+
+
+
+
+module.exports = { sqlForPartialUpdate, sqlForFilteredCompanyFinds, sqlForFilteredJobFinds };

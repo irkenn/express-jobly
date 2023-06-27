@@ -13,6 +13,7 @@ const {
   commonAfterEach,
   commonAfterAll,
 } = require("./_testCommon");
+const { application } = require("express");
 
 beforeAll(commonBeforeAll);
 beforeEach(commonBeforeEach);
@@ -30,6 +31,7 @@ describe("authenticate", function () {
       lastName: "U1L",
       email: "u1@email.com",
       isAdmin: false,
+      
     });
   });
 
@@ -117,6 +119,7 @@ describe("findAll", function () {
         lastName: "U1L",
         email: "u1@email.com",
         isAdmin: false,
+        jobs: expect.any(Array)
       },
       {
         username: "u2",
@@ -124,6 +127,7 @@ describe("findAll", function () {
         lastName: "U2L",
         email: "u2@email.com",
         isAdmin: false,
+        jobs: expect.any(Array)
       },
     ]);
   });
@@ -140,6 +144,7 @@ describe("get", function () {
       lastName: "U1L",
       email: "u1@email.com",
       isAdmin: false,
+      jobs: expect.any(Array)
     });
   });
 
@@ -215,16 +220,51 @@ describe("remove", function () {
   test("works", async function () {
     await User.remove("u1");
     const res = await db.query(
-        "SELECT * FROM users WHERE username='u1'");
-    expect(res.rows.length).toEqual(0);
+      "SELECT * FROM users WHERE username='u1'");
+      expect(res.rows.length).toEqual(0);
+    });
+    
+    test("not found if no such user", async function () {
+      try {
+        await User.remove("nope");
+        fail();
+      } catch (err) {
+        expect(err instanceof NotFoundError).toBeTruthy();
+      }
+    });
   });
+  
+  /************************************** apply */
 
-  test("not found if no such user", async function () {
-    try {
-      await User.remove("nope");
-      fail();
-    } catch (err) {
-      expect(err instanceof NotFoundError).toBeTruthy();
-    }
+  describe("apply for a job", function (){
+    
+    
+    test("creates an application in the table", async function(){
+      //Get job id for job1 and job2
+      let job1Id = await db.query(`SELECT id FROM jobs WHERE title = 'job1'`);
+      let job2Id = await db.query(`SELECT id FROM jobs WHERE title = 'job2'`);
+      console.log('job1Id', job1Id);
+      job1Id = job1Id.rows[0].id;
+      job2Id = job2Id.rows[0].id;
+      
+      //check that applications table is empty
+      let result1 = await db.query(`
+      SELECT * FROM applications
+      `);
+      expect(result1.rows.length).toEqual(0);
+      
+      // create and application
+      let application = await User.apply("u1", job1Id);
+      
+      //check that applications table now has one register
+      let result2 = await db.query(
+        `SELECT
+          job_id AS "jobId" 
+        FROM applications`);
+      console.log('result2.rows[0]', result2.rows[0]);
+      expect(result2.rows.length).toEqual(1);
+
+      expect(result2.rows[0]).toEqual(application);
+    });
+
   });
-});

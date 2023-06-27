@@ -54,10 +54,13 @@ router.get("/", async function(req, res, next){
       //If the querie is appropiate  
       const companies = await Company.filteredFind(req.query);
       return res.json({ companies });
+      // return res.json( companies );
     }
-    //If there are no arguments it will return all the companies.
+    //If there are no arguments it will return all the companies, so the same
+    // routhe handler will work in both cases.
     const companies = await Company.findAll();
-    return res.json({ companies });
+    return res.json( { companies });
+    // return res.json({ companies });
     
 
   }catch (err){

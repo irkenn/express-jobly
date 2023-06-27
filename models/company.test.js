@@ -56,7 +56,7 @@ describe("create", function () {
   });
 });
 
-/************************************** findAll */
+/************************************** filteredFind */
 
 describe("filteredFind", function (){
   test("finds according the criteria", async function(){
@@ -73,6 +73,7 @@ describe("filteredFind", function (){
               description: "Desc2",
               numEmployees: 2,
               logoUrl: "http://c2.img",
+              jobs: expect.any(Array)
             },
             {
               handle: "c3",
@@ -80,6 +81,7 @@ describe("filteredFind", function (){
               description: "Desc3",
               numEmployees: 3,
               logoUrl: "http://c3.img",
+              jobs: expect.any(Array)
             }
       );
   });
@@ -100,6 +102,7 @@ describe("findAll", function () {
         description: "Desc1",
         numEmployees: 1,
         logoUrl: "http://c1.img",
+        jobs: expect.any(Array)
       },
       {
         handle: "c2",
@@ -107,6 +110,7 @@ describe("findAll", function () {
         description: "Desc2",
         numEmployees: 2,
         logoUrl: "http://c2.img",
+        jobs: expect.any(Array)
       },
       {
         handle: "c3",
@@ -114,6 +118,7 @@ describe("findAll", function () {
         description: "Desc3",
         numEmployees: 3,
         logoUrl: "http://c3.img",
+        jobs: expect.any(Array)
       },
     ]);
   });
@@ -130,6 +135,7 @@ describe("get", function () {
       description: "Desc1",
       numEmployees: 1,
       logoUrl: "http://c1.img",
+      jobs: expect.any(Array)
     });
   });
 

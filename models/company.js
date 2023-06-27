@@ -2,7 +2,7 @@
 
 const db = require("../db");
 const { BadRequestError, NotFoundError } = require("../expressError");
-const { sqlForPartialUpdate, sqlForFilteredFinds } = require("../helpers/sql");
+const { sqlForPartialUpdate, sqlForFilteredCompanyFinds, nestedJSONcompany } = require("../helpers/sql");
 
 /** Related functions for companies. */
 
@@ -51,35 +51,70 @@ class Company {
 
   static async findAll() {
     const companiesRes = await db.query(
-          `SELECT handle,
-                  name,
-                  description,
-                  num_employees AS "numEmployees",
-                  logo_url AS "logoUrl"
-           FROM companies
-           ORDER BY name`);
+          `SELECT 
+          c.handle,
+          c.name,
+          c.description,
+          c.num_employees AS "numEmployees",
+          c.logo_url AS "logoUrl",
+          jsonb_agg(DISTINCT j) AS jobs
+        FROM companies AS "c"
+        LEFT JOIN jobs AS "j" ON (c.handle = j.company_handle)
+        GROUP BY c.handle`);
+        
     return companiesRes.rows;
   }
 
-
   static async filteredFind(requestQuery){
     //const { name, minEmployees, maxEmployees } = requestQuery;
-    const { setCols, values } = sqlForFilteredFinds(requestQuery);
+    const { setCols, values } = sqlForFilteredCompanyFinds(requestQuery);
     const companies = await db.query(
+      `SELECT 
+        c.handle,
+        c.name,
+        c.description,
+        c.num_employees AS "numEmployees",
+        c.logo_url AS "logoUrl",
+        jsonb_agg(DISTINCT j) AS jobs
+      FROM companies AS "c"
+      LEFT JOIN jobs AS "j" ON (c.handle = j.company_handle)
+      WHERE ${setCols} 
+      GROUP BY c.handle`,
+      values);
+
+    if (!companies || companies.rows.length === 0) throw new NotFoundError(`No current matches for your request`);
+    
+    
+
+    return companies.rows;
+    
+
+  }
+
+  /** filtered find trash code #trashcode
+   *    const companies = await db.query(
       `SELECT handle,
       name,
       description,
       num_employees AS "numEmployees",
       logo_url AS "logoUrl"
       FROM companies
+      WHERE ${setCols}
+        `,
+      values);
+   * SELECT 
+        c.handle,
+        c.name,
+        c.description,
+        c.num_employees AS "numEmployees",
+        c.logo_url AS "logoUrl",
+        jsonb_agg(DISTINCT j) AS jobs
+      FROM companies AS "c"
+        JOIN jobs AS "j" ON (c.handle = j.company_handle)
       WHERE ${setCols} 
-      `,
-      values
-      );
-    if (!companies || companies.rows.length === 0) throw new NotFoundError(`No current matches for your request`);
-    
-    return companies.rows;
-  }
+      GROUP BY c.handle
+   */
+
 
   /** Given a company handle, return data about company.
    *
@@ -91,13 +126,17 @@ class Company {
 
   static async get(handle) {
     const companyRes = await db.query(
-          `SELECT handle,
-                  name,
-                  description,
-                  num_employees AS "numEmployees",
-                  logo_url AS "logoUrl"
-           FROM companies
-           WHERE handle = $1`,
+      `SELECT 
+          c.handle,
+          c.name,
+          c.description,
+          c.num_employees AS "numEmployees",
+          c.logo_url AS "logoUrl",
+        jsonb_agg(DISTINCT j) AS jobs
+        FROM companies AS "c"
+        LEFT JOIN jobs AS "j" ON (c.handle = j.company_handle)
+        WHERE c.handle = $1 
+        GROUP BY c.handle`,
         [handle]);
 
     const company = companyRes.rows[0];

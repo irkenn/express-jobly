@@ -27,3 +27,4 @@ describe("SQL query string and values", function(){
         expect(result.values).toEqual(['Ezra', false]);
     });
 });
+
