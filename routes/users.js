@@ -104,7 +104,6 @@ router.post("/:username/jobs/:jobId", ensureLoggedIn, async function(req, res, n
     if(res.locals.user.isAdmin === true || res.locals.user.username === username){ 
       const response = await User.apply(username, jobId);
       
-      console.log('response', response);
       return res.status(201).json({applied: response.jobId})
     }
     throw new ForbiddenError();

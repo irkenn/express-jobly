@@ -243,7 +243,6 @@ describe("remove", function () {
       //Get job id for job1 and job2
       let job1Id = await db.query(`SELECT id FROM jobs WHERE title = 'job1'`);
       let job2Id = await db.query(`SELECT id FROM jobs WHERE title = 'job2'`);
-      console.log('job1Id', job1Id);
       job1Id = job1Id.rows[0].id;
       job2Id = job2Id.rows[0].id;
       
